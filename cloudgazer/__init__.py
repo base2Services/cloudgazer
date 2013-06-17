@@ -6,15 +6,15 @@
 import argparse
 import logging
 import os.path
+import yaml
 from AWSHosts import AWSHosts
-from configobj import ConfigObj
 from NagiosConfig import NagiosConfig
 
 
 def main():
     #parse command line options
     argParse = argparse.ArgumentParser()
-    argParse.add_argument('-c', '--config_file', dest='configFile', default='~/.cloudgazer', help='Cloudgazer configuration file location. Defaults to ~/.cloudgazer')
+    argParse.add_argument('-c', '--config_file', dest='configFile', default='~/.cloudgazer.yaml', help='Cloudgazer configuration file location. Defaults to ~/.cloudgazer')
     argParse.add_argument('-l', '--log', dest='loglevel', required=False, default="info", help="Log Level for output messages, CRITICAL, ERROR, WARNING, INFO or DEBUG")
     args = argParse.parse_args()
 
@@ -31,32 +31,33 @@ def main():
     if not os.path.exists(configFile):
         print "Error: Configuration file %s doesn't exist." % (args.configFile)
         exit(1)
-    config = ConfigObj(configFile)
-
+    conf_fo = open(configFile, 'r')
+    config = yaml.safe_load(conf_fo)
+    conf_fo.close()
+    
     #get ec2 region
-    region = config['ec2_region']
+    region = config['ec2']['region']
 
-    #get paths for nagios config and sqlite db
-    nagiosDir = os.path.expanduser(config['nagios_conf_dir'])
-    sqliteDbFile = os.path.expanduser(config['sqlite_database'])
+    #get paths for nagios config
+    nagiosDir = os.path.expanduser(config['nagios']['host_dir'])
+    
+    #get database config
+    if config['database']['type'] != 'sqlite':
+        logger.critical('Database type: %s, not currently supported. Only sqlite for now')
+        exit(1)
+    sqliteDbFile = os.path.expanduser(config['database']['location'])
 
-    #get mapping of aws to nagios host fields
-    host_properties = {'address': config['address_property']}
-    host_properties['host_name'] = config['hostname_properties']
-    host_properties['alias'] = config['alias_properties']
-    host_properties['type'] = config['host_type']
-    host_properties['template_map'] = dict(config['template map'])
+    #Grab the bits of the config we need to give to AWSHosts class
+    templateMap = config['template_map']
+    mappings = config['mappings']
+    filters = config['ec2']['filters']
 
-    #Convert filters in config file into a dict
-    filters = dict(config['filters'])
-
-    awsHosts = AWSHosts(region=region, filters=filters, host_properties=host_properties)
+    awsHosts = AWSHosts(region=region, filters=filters, mappings=mappings, templateMap=templateMap)
+    
     #print len(awsHosts.instances)
     for host in awsHosts.hosts:
-        logger.debug("Hostname: %s" % (host["host_name"]))
-        logger.debug("Alias: %s" % (host["alias"]))
-        logger.debug("Address: %s" % (host["address"]))
-        logger.debug("Use: %s" % (host["type"]))
+        for map in config['mappings']:
+            logger.debug("Host: %s, Nagios field: %s, Value: %s" % (host["host_name"], config['mappings'][map]['nagios_field'], host[config['mappings'][map]['nagios_field']]))
 
     nagiosConf = NagiosConfig(configPath=nagiosDir, databaseFile=sqliteDbFile)
     changedHosts = nagiosConf.updateDB(awsHosts.hosts)

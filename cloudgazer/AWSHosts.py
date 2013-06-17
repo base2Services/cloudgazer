@@ -3,7 +3,7 @@ from boto import ec2
 
 
 class AWSHosts:
-    def __init__(self, region, filters, host_properties):
+    def __init__(self, region, filters, mappings, templateMap):
         self.logger = logging.getLogger(__name__)
         self.region = region
         self.filters = filters
@@ -15,11 +15,8 @@ class AWSHosts:
 
         for inst in self.instances:
             myhost = {}
-            myhost['host_name'] = self.build_nagios_field(inst, 'host_name', host_properties['host_name'])
-            myhost['alias'] = self.build_nagios_field(inst, 'alias', host_properties['alias'])
-            myhost['address'] = self.build_nagios_field(inst, 'address', host_properties['address'])
-            myhost['type'] = self.build_nagios_field(inst, 'type', host_properties['type'])
-
+            for map in mappings:
+                myhost[mappings[map]['nagios_field']] = self.build_nagios_field(inst, mappings[map]['nagios_field'], mappings[map]['ec2_instance_property'])
             self.hosts.append(myhost)
 
     def build_nagios_field(self, instance, fieldName, fieldProperties):
