@@ -14,7 +14,7 @@ from NagiosConfig import NagiosConfig
 def main():
     #parse command line options
     argParse = argparse.ArgumentParser()
-    argParse.add_argument('-c', '--config_file', dest='configFile', default='~/.cloudgazer.yaml', help='Cloudgazer configuration file location. Defaults to ~/.cloudgazer')
+    argParse.add_argument('-c', '--config_file', dest='configFile', default='~/.cloudgazer.yaml', help='Cloudgazer configuration file location. Defaults to ~/.cloudgazer.yaml')
     argParse.add_argument('-l', '--log', dest='loglevel', required=False, default="info", help="Log Level for output messages, CRITICAL, ERROR, WARNING, INFO or DEBUG")
     args = argParse.parse_args()
 
@@ -34,13 +34,15 @@ def main():
     conf_fo = open(configFile, 'r')
     config = yaml.safe_load(conf_fo)
     conf_fo.close()
-    
+
     #get ec2 region
     region = config['ec2']['region']
 
     #get paths for nagios config
     nagiosDir = os.path.expanduser(config['nagios']['host_dir'])
-    
+    hostIdent = config['nagios']['host_identifier']
+    nagiosFields = [config['mappings'][map]['nagios_field'] for map in config['mappings']]
+
     #get database config
     if config['database']['type'] != 'sqlite':
         logger.critical('Database type: %s, not currently supported. Only sqlite for now')
@@ -53,15 +55,15 @@ def main():
     filters = config['ec2']['filters']
 
     awsHosts = AWSHosts(region=region, filters=filters, mappings=mappings, templateMap=templateMap)
-    
+
     #print len(awsHosts.instances)
     for host in awsHosts.hosts:
         for map in config['mappings']:
             logger.debug("Host: %s, Nagios field: %s, Value: %s" % (host["host_name"], config['mappings'][map]['nagios_field'], host[config['mappings'][map]['nagios_field']]))
 
-    nagiosConf = NagiosConfig(configPath=nagiosDir, databaseFile=sqliteDbFile)
+    nagiosConf = NagiosConfig(configPath=nagiosDir, databaseFile=sqliteDbFile, hostIdent=hostIdent, nagiosFields=nagiosFields)
     changedHosts = nagiosConf.updateDB(awsHosts.hosts)
-    logger.info(nagiosConf.configPath)
-
+    print changedHosts
+    
 if __name__ == '__main__':
     main()
