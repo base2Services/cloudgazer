@@ -1,9 +1,10 @@
 import logging
 import os.path
 import sqlite3
+from os import listdir
 
 
-class NagiosConfig:
+class Config:
     def __init__(self, configPath, databaseFile, hostIdent, nagiosFields):
         self.logger = logging.getLogger(__name__)
         self.configPath = configPath
@@ -15,9 +16,6 @@ class NagiosConfig:
         nagiosFieldsStr = ' TEXT, '.join(self.nagiosFields)
         createTable = "CREATE TABLE nagios_hosts(%s TEXT, PRIMARY KEY (%s))" % (nagiosFieldsStr, self.hostIdent)
 
-        if not os.path.exists(self.configPath):
-            self.logger.critical('Nagios configuration path does not exist, exiting.')
-            exit(1)
         if not os.path.exists(self.databaseFile):
             self.logger.warning('SQLite database does not exist, creating new one.')
 
@@ -128,3 +126,45 @@ class NagiosConfig:
         self.logger.debug("Deleting a host from DB: %s" % deleteSQL)
         self.dbconn.execute(deleteSQL)
         self.dbconn.commit()
+
+
+class Writer:
+    def __init__(self, configDir, hosts, changedHosts, splitBy):
+        self.logger = logging.getLogger(__name__)
+        self.configDir = configDir
+        if not os.path.isdir(self.configDir):
+            self.logger.critical('Nagios configuration path does not exist, exiting.')
+            exit(1)
+        if splitBy.lower() == 'none':
+            newFiles = ['cloudgazer.cfg']
+        else:
+            newFiles = {}
+            for host in hosts:
+                filename = "cloudgazer_%s.cfg" % (host[splitBy])
+                if filename not in newFiles:
+                    newFiles[filename] = self._convertHostToStr(host)
+                else:
+                    newFiles[filename] += self._convertHostToStr(host)
+        self.logger.debug("new files: %s" % (newFiles))
+
+        for file in newFiles:
+            f = open(os.path.join(self.configDir, file), 'w')
+            f.write(newFiles[file])
+
+    def _convertHostToStr(self, host):
+        hostStr = 'define host {\n'
+        longestField = 0
+        for field in host:
+            if len(field) > longestField:
+                longestField = len(field)
+        for field in host:
+            tabStr = '' + '\t' * ((longestField / 4) - (len(field) / 4))
+            hostStr += "\t%s\t\t%s%s\n" % (field, tabStr, host[field])
+        hostStr += '}\n\n'
+        return hostStr
+
+    def _getFileName(self, host, splitBy):
+        if splitBy.lower() == 'none':
+            return 'cloudgazer.cfg'
+        else:
+            return "cloudgazer_%s.cfg" % (host[splitBy])
