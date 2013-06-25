@@ -1,7 +1,9 @@
 import logging
 import os.path
 import sqlite3
-from os import listdir
+import shlex
+from subprocess import check_call
+from subprocess import CalledProcessError
 
 
 class Config:
@@ -168,3 +170,36 @@ class Writer:
             return 'cloudgazer.cfg'
         else:
             return "cloudgazer_%s.cfg" % (host[splitBy])
+
+
+class Manager:
+    """
+    Looks after verifying config and restarting Nagios
+    """
+    def __init__(self, config):
+        self.logger = logging.getLogger(__name__)
+        self.config = config
+
+    def verifyConfig(self):
+        try:
+            self.logger.debug("Verifying nagios config, running: %s" % (self.config['test_config_cmd']))
+            check_call(shlex.split(self.config['test_config_cmd']))
+            return True
+        except OSError as e:
+            self.logger.debug("Nagios verify failed to execute: %s" % (e.strerror))
+            return False
+        except CalledProcessError as e:
+            self.logger.debug("Nagios verify failed. Return code: %s" % (e.returncode))
+            return False
+
+    def restart(self):
+        try:
+            self.logger.debug("Restarting nagios with command: %s" % (self.config['restart_cmd']))
+            check_call(shlex.split(self.config['restart_cmd']))
+            return True
+        except OSError as e:
+            self.logger.debug("Nagios restart failed to execute: %s" % (e.strerror))
+            return False
+        except CalledProcessError as e:
+            self.logger.debug("Nagios restart failed. Return code: %s" % (e.returncode))
+            return False

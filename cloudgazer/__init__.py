@@ -7,9 +7,11 @@ import argparse
 import logging
 import os.path
 import yaml
-from AWSHosts import AWSHosts
+from AWS import Hosts as AWSHosts
+from AWS import SNSNotify
 from Nagios import Config as NagiosConfig
 from Nagios import Writer as NagiosWriter
+from Nagios import Manager as NagiosManager
 
 
 def main():
@@ -59,6 +61,9 @@ def main():
     mappings = config['mappings']
     filters = config['ec2']['filters']
 
+    #Notification config
+    notification_conf = config['notifications']
+
     awsHosts = AWSHosts(region=region, filters=filters, mappings=mappings, templateMap=templateMap)
 
     #print len(awsHosts.instances)
@@ -72,17 +77,28 @@ def main():
     if len(changedHosts) > 0:
         logger.debug('Host list changed, writing nagios config')
         NagiosWriter(configDir=nagiosDir, hosts=awsHosts.hosts, changedHosts=changedHosts, splitBy=nagiosSplitBy)
-        Notify('SNS', changedHosts)
+        Notify(method='SNS', changedHosts=changedHosts, config=notification_conf)
+        nagManager = NagiosManager(config=config['nagios'])
+        if nagManager.verifyConfig():
+            if nagManager.restart():
+                logger.debug('Nagios successfully restarted')
+            else:
+                logger.critical('Failed to restart nagios')
+        else:
+            logger.critical('Failed to verify nagios config')
     else:
         logger.debug('No change to host list. Nothing to do.')
 
 
 class Notify:
-    def __init__(self, method, changedHosts):
-        self.message = ''
+    def __init__(self, method, changedHosts, config):
         self.changedHosts = changedHosts
-
-        print self._generate_message(changedHosts)
+        self.config = config
+        self.message = self._generate_message(changedHosts)
+        
+        if method == 'SNS':
+            sns = SNSNotify(region=config['sns']['region'] , topic=config['sns']['topic'])
+            sns.publish(message=self.message, subject='Cloudgazer Notification')
 
     def _generate_message(self, changedHosts):
         message = 'AWS Hosts in nagios have changed:\n\n'

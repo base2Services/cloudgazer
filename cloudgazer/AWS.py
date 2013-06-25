@@ -1,8 +1,9 @@
 import logging
 from boto import ec2
+from boto import sns
 
 
-class AWSHosts:
+class Hosts:
     def __init__(self, region, filters, mappings, templateMap):
         self.logger = logging.getLogger(__name__)
         self.region = region
@@ -47,3 +48,13 @@ class AWSHosts:
                 except AttributeError:
                     self.logger.critical("Unable to find instance attribute %s when building nagios field %s" % (fieldProperties, fieldName))
                     exit(1)
+
+
+class SNSNotify:
+    def __init__(self, region, topic):
+        self.region = region
+        self.topic = topic
+        self._snsConn = sns.connect_to_region(region)
+
+    def publish(self, message, subject):
+        return self._snsConn.publish(self.topic, message, subject)
