@@ -1,0 +1,53 @@
+ec2:
+    region: us-west-1
+    filters:
+        tag-key: 'role'
+
+notifications:
+    sns:
+        region: us-west-1
+        topic : arn:aws:sns:us-west-1:xxxxxxx:cloudgazer
+
+database:
+    type: sqlite
+    location: ~/cloudgazer.db
+
+nagios:
+    #What directory are we writing nagios host config too. This directory should not contain any manually generated
+    #config as cloudgazer will replace all .cfg files in there.
+    host_dir: ~/nagios_cg
+    
+    #which map identifies the host (i.e. If this field changes, its a new host, not a change to an existing host, 
+    #regardless of other field values)
+    host_identifier: host_name
+    
+    #How do we want the nagios host config broken up by? If you want one file for all, set this to "none". 
+    #Otherwise should be the name of a nagios host field i.e host_name if you want one file per host.
+    #Files will be named cloudgazer_[nagios_field_value].cfg or just cloudgazer.cfg if set to none.
+    separate_hosts_by: use
+
+    #Command that is run before we restart nagios to make sure the config is correct
+    test_config_cmd: /usr/sbin/nagios3 -v /etc/nagios3/nagios.cfg
+    
+    #Command that is run to restart nagios
+    restart_cmd: /etc/init.d/nagios3 restart
+
+
+mappings:
+    template:
+        nagios_field          : 'use'
+        ec2_instance_property : 'tag:role'
+    address:
+        nagios_field          : 'address'
+        ec2_instance_property : 'private_ip_address'
+    hostname:
+        nagios_field          : 'host_name'
+        ec2_instance_property : 
+            - 'tag:Name'
+            - 'id'
+    alias:
+        nagios_field          : 'alias'
+        ec2_instance_property :
+            - 'tag:Name'
+            - 'id'
+
