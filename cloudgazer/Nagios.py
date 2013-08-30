@@ -137,6 +137,12 @@ class Writer:
         if not os.path.isdir(self.configDir):
             self.logger.critical('Nagios configuration path does not exist, exiting.')
             exit(1)
+
+        #remove all the files in the directory currently
+        filelist = [f for f in os.listdir(self.configDir) if f.endswith(".cfg")]
+        for f in filelist:
+            os.remove(f)
+
         if splitBy.lower() == 'none':
             newFiles = ['cloudgazer.cfg']
         else:
