@@ -141,7 +141,7 @@ class Writer:
         #remove all the files in the directory currently
         filelist = [f for f in os.listdir(self.configDir) if f.endswith(".cfg")]
         for f in filelist:
-            os.remove(f)
+            os.remove(self.configDir + f)
 
         if splitBy.lower() == 'none':
             newFiles = ['cloudgazer.cfg']
