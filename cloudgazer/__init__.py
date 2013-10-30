@@ -6,6 +6,7 @@
 import argparse
 import logging
 import os.path
+import socket
 import yaml
 from AWS import Hosts as AWSHosts
 from AWS import SNSNotify
@@ -83,25 +84,42 @@ def main():
             if nagManager.restart():
                 logger.debug('Nagios successfully restarted')
             else:
-                logger.critical('Failed to restart nagios')
+                msg = 'Failed to restart nagios'
+                logger.critical(msg)
+                Notify(method='SNS', config=notification_conf, type='error', message=msg, subject='Cloudgazer ERROR')
+
         else:
-            logger.critical('Failed to verify nagios config')
+            msg = 'Failed to verify nagios config'
+            logger.critical(msg)
+            Notify(method='SNS', config=notification_conf, type='error', message=msg, subject='Cloudgazer ERROR')
     else:
         logger.debug('No change to host list. Nothing to do.')
 
 
 class Notify:
-    def __init__(self, method, changedHosts, config):
+    def __init__(self, config, method, type='host_change', message=None, changedHosts=None, subject='Cloudgazer Notification'):
         self.changedHosts = changedHosts
         self.config = config
-        self.message = self._generate_message(changedHosts)
+        self.hostname = socket.gethostname()
+        
+        #if its a host change notification, generate the message from changeHosts dict
+        if type == 'host_change':
+            self.message = self._generate_host_change_message(changedHosts)
+        #only other type we have at the moment is an error so if not host_change, assume its an error
+        else:
+            self.message = "On host: %s \n" % (self.hostname)
+            if message:
+                self.message += 'Cloudgazer encounted the following error:\n\n'
+                self.message += message
+            else:
+                self.message += 'Cloudgazer encounted an unknown error, please investigate.\n\n'
         
         if method == 'SNS':
             sns = SNSNotify(region=config['sns']['region'] , topic=config['sns']['topic'])
-            sns.publish(message=self.message, subject='Cloudgazer Notification')
+            sns.publish(message=self.message, subject=subject)
 
-    def _generate_message(self, changedHosts):
-        message = 'AWS Hosts in nagios have changed:\n\n'
+    def _generate_host_change_message(self, changedHosts):
+        message = "AWS Hosts in nagios have changed on %s:\n\n" % (self.hostname)
         hostsAdded = []
         hostsUpdated = []
         hostsRemoved = []
@@ -118,9 +136,9 @@ class Notify:
                         continue
                     fields.append(field)
                 hostsUpdated.append("%s (%s)" % (host, ', '.join(fields)))
-        message += "- New hosts (%s): %s\n" % (len(hostsAdded), ", ".join(hostsAdded))
-        message += "- Removed hosts (%s): %s\n" % (len(hostsRemoved), ", ".join(hostsRemoved))
-        message += "- Updated hosts (%s): %s\n" % (len(hostsUpdated), ", ".join(hostsUpdated))
+        message += "- New hosts (%s): \n%s\n\n" % (len(hostsAdded), "\n ".join(sorted(hostsAdded)))
+        message += "- Removed hosts (%s): \n%s\n\n" % (len(hostsRemoved), "\n ".join(sorted(hostsRemoved)))
+        message += "- Updated hosts (%s): \n%s\n\n" % (len(hostsUpdated), "\n ".join(sorted(hostsUpdated)))
 
         return message
 
