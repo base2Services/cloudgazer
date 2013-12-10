@@ -196,10 +196,12 @@ class Manager:
         except OSError as e:
             self.logger.debug("Nagios verify failed to execute: %s" % (e.strerror))
             status['ok'] = False
+            status['output'] = e.strerror
             return status
         except CalledProcessError as e:
             self.logger.debug("Nagios verify failed. Return code: %s" % (e.returncode))
             status['ok'] = False
+            status['output'] = e.output
             return status
 
     def restart(self):
