@@ -2,7 +2,7 @@ import logging
 import os.path
 import sqlite3
 import shlex
-from subprocess import check_call
+from subprocess import check_call, check_output
 from subprocess import CalledProcessError
 
 
@@ -187,16 +187,20 @@ class Manager:
         self.config = config
 
     def verifyConfig(self):
+        status = {}
         try:
             self.logger.debug("Verifying nagios config, running: %s" % (self.config['test_config_cmd']))
-            check_call(shlex.split(self.config['test_config_cmd']))
-            return True
+            status['output'] = check_output(shlex.split(self.config['test_config_cmd']))
+            status['ok'] = True
+            return status
         except OSError as e:
             self.logger.debug("Nagios verify failed to execute: %s" % (e.strerror))
-            return False
+            status['ok'] = False
+            return status
         except CalledProcessError as e:
             self.logger.debug("Nagios verify failed. Return code: %s" % (e.returncode))
-            return False
+            status['ok'] = False
+            return status
 
     def restart(self):
         try:

@@ -80,7 +80,8 @@ def main():
         NagiosWriter(configDir=nagiosDir, hosts=awsHosts.hosts, changedHosts=changedHosts, splitBy=nagiosSplitBy)
         Notify(method='SNS', changedHosts=changedHosts, config=notification_conf)
         nagManager = NagiosManager(config=config['nagios'])
-        if nagManager.verifyConfig():
+        nag_config_check = nagManager.verifyConfig()
+        if nag_config_check['ok']:
             if nagManager.restart():
                 logger.debug('Nagios successfully restarted')
             else:
@@ -91,6 +92,7 @@ def main():
         else:
             msg = 'Failed to verify nagios config'
             logger.critical(msg)
+            msg = msg + "\n" + nag_config_check['output']
             Notify(method='SNS', config=notification_conf, type='error', message=msg, subject='Cloudgazer ERROR')
     else:
         logger.debug('No change to host list. Nothing to do.')
