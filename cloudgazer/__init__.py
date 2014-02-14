@@ -103,7 +103,7 @@ class Notify:
         self.changedHosts = changedHosts
         self.config = config
         self.hostname = socket.gethostname()
-        
+
         #if its a host change notification, generate the message from changeHosts dict
         if type == 'host_change':
             self.message = self._generate_host_change_message(changedHosts)
@@ -115,7 +115,7 @@ class Notify:
                 self.message += message
             else:
                 self.message += 'Cloudgazer encounted an unknown error, please investigate.\n\n'
-        
+
         if method == 'SNS':
             sns = SNSNotify(region=config['sns']['region'] , topic=config['sns']['topic'])
             sns.publish(message=self.message, subject=subject)
