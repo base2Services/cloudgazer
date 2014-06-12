@@ -240,7 +240,7 @@ class Downtime:
         self.changedHosts = changedHosts
 
         if not os.path.exists(self.icingaCmdFile):
-            self.logger.critical('icinga cmdfile does not exist, exiting.')
+            self.logger.critical("icinga cmdfile: %s does not exist, exiting." % (self.icingaCmdFile))
             exit(1)
         dt = datetime.datetime.now()
         dtStart_time = time.mktime(dt.timetuple())
