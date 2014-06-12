@@ -7,6 +7,7 @@ from subprocess import check_call, check_output, call
 from subprocess import CalledProcessError
 import time
 import datetime
+import pwd
 
 
 class Config:
@@ -252,16 +253,26 @@ class Downtime:
         dtAuthor = "nagios"
         # Duration in seconds
         dtDuration = 900
-
+        runas = pwd.getpwnam('nagios')
+        self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
         for hosts in changedHosts:
+            
+            os.seteuid(runas.pw_uid)
+            testfile = "/tmp/whoamid"
             if changedHosts[hosts] == 'added':
                 dtHost_name = hosts
                 dtMessage = "[%d] %s;%s;%d;%d;0;0;%d;%s;%s; \n " % (dtStart_time, dtCommand, dtHost_name, dtStart_time,dtEnd_time, dtDuration, dtAuthor, dtComment) 
-                args = ["printf", dtMessage ]
+                args = ["/bin/printf", dtMessage, ]
                 try:
+                    self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
                     f = open(icingaCmdFile, 'w')
-                    subprocess.call(args, stdout=f )
+                    self.logger.debug("message to icinga: %s " % (dtMessage))
+                    f.write(dtMessage)
                 except IOError as e:
                     self.logger.debug("Cannot open icinga cmdfile: %s " % (self.icingaCmdFile))
                 f.close()
+            os.seteuid(0)
+
+        self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
+            
 
