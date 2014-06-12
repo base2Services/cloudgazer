@@ -238,10 +238,10 @@ class Downtime:
         self.logger = logging.getLogger(__name__)
         self.icingaCmdFile = icingaCmdFile
         self.changedHosts = changedHosts
-
-        if not os.path.exists(self.icingaCmdFile):
-            self.logger.critical("icinga cmdfile: %s does not exist, exiting." % (self.icingaCmdFile))
-            exit(1)
+        # F U Python and your random fail os.path permissions weirdness 
+        #if not os.path.exists(self.icingaCmdFile):
+        #    self.logger.critical("icinga cmdfile: %s does not exist, exiting." % (self.icingaCmdFile))
+        #    exit(1)
         dt = datetime.datetime.now()
         dtStart_time = time.mktime(dt.timetuple())
         end = dt + datetime.timedelta(minutes=10)
@@ -258,7 +258,18 @@ class Downtime:
                 dtHost_name = hosts
                 dtMessage = "[%d] %s;%s;%d;%d;0;0;%d;%s;%s; \n " % (dtStart_time, dtCommand, dtHost_name, dtStart_time,dtEnd_time, dtDuration, dtAuthor, dtComment) 
                 args = ["printf", dtMessage ]
-                f = open(icingaCmdFile, 'w')
-                subprocess.call(args, stdout=f )
+                try:
+                    f = open(icingaCmdFile, 'w')
+                    subprocess.call(args, stdout=f )
+                except IOError as e:
+                    self.logger.debug("Cannot open icinga cmdfile: %s " % (self.icingaCmdFile))
                 f.close()
 
+/var/lib/icinga/rw/icinga.cmd
+        try:
+            self.logger.debug("Restarting nagios with command: %s" % (self.config['restart_cmd']))
+            check_call(shlex.split(self.config['restart_cmd']))
+            return True
+        except OSError as e:
+            self.logger.debug("Nagios restart failed to execute: %s" % (e.strerror))
+            return False
