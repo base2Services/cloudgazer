@@ -265,11 +265,3 @@ class Downtime:
                     self.logger.debug("Cannot open icinga cmdfile: %s " % (self.icingaCmdFile))
                 f.close()
 
-/var/lib/icinga/rw/icinga.cmd
-        try:
-            self.logger.debug("Restarting nagios with command: %s" % (self.config['restart_cmd']))
-            check_call(shlex.split(self.config['restart_cmd']))
-            return True
-        except OSError as e:
-            self.logger.debug("Nagios restart failed to execute: %s" % (e.strerror))
-            return False
