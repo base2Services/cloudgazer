@@ -255,8 +255,10 @@ class Downtime:
         dtDuration = 900
         runas = pwd.getpwnam('nagios')
         self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
+        self.logger.debug("Waiting for 10 seconds for icinga to come backup")
+        time.sleep(10)
         for hosts in changedHosts:
-            
+
             os.seteuid(runas.pw_uid)
             testfile = "/tmp/whoamid"
             if changedHosts[hosts] == 'added':
@@ -274,5 +276,5 @@ class Downtime:
             os.seteuid(0)
 
         self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
-            
+
 
