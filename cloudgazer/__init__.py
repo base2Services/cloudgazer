@@ -13,6 +13,7 @@ from AWS import SNSNotify
 from Nagios import Config as NagiosConfig
 from Nagios import Writer as NagiosWriter
 from Nagios import Manager as NagiosManager
+from Nagios import Downtime as NagiosDowntime
 
 
 def main():
@@ -47,6 +48,7 @@ def main():
     hostIdent = config['nagios']['host_identifier']
     nagiosFields = [config['mappings'][map]['nagios_field'] for map in config['mappings']]
     nagiosSplitBy = config['nagios']['separate_hosts_by']
+    icingaCmdFile = config['nagios']['command_file']
     if nagiosSplitBy not in nagiosFields and nagiosSplitBy.lower() != 'none':
         logger.critical('separate_hosts_by not set to a known nagios host field')
         exit(1)
@@ -84,6 +86,9 @@ def main():
         if nag_config_check['ok']:
             if nagManager.restart():
                 logger.debug('Nagios successfully restarted')
+                if changedHosts:
+                    NagiosDowntime(changedHosts, icingaCmdFile)
+                    logger.debug('Scheduled downtime for hosts')
             else:
                 msg = 'Failed to restart nagios'
                 logger.critical(msg)

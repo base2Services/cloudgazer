@@ -2,8 +2,12 @@ import logging
 import os.path
 import sqlite3
 import shlex
-from subprocess import check_call, check_output
+import subprocess
+from subprocess import check_call, check_output, call
 from subprocess import CalledProcessError
+import time
+import datetime
+import pwd
 
 
 class Config:
@@ -215,3 +219,62 @@ class Manager:
         except CalledProcessError as e:
             self.logger.debug("Nagios restart failed. Return code: %s" % (e.returncode))
             return False
+
+class Downtime:
+    """
+    Looks after scheduling downtime in Nagios
+    The shell version is
+    now=`date +%s`
+    printf "[%lu] SCHEDULE_HOST_SVC_DOWNTIME;homeapi@absinthe-home-api-i-4e75a770
+   ;${now};$((${now} + 900 ));0;0;1800;nagios;Testing cloudgazer\n" "${now}" >$commandfile
+
+    SCHEDULE_HOST_SVC_DOWNTIME;<host_name>;<start_time>;<end_time>;<fixed>;<trigger_id>;<duration>;<author>;<comment>
+
+    Schedules downtime for all services associated with a particular host. 
+    If the "fixed" argument is set to one (1), downtime will start and end at
+    the times specified by the "start" and "end" arguments. 
+
+    """
+    def __init__(self, changedHosts, icingaCmdFile):
+        self.logger = logging.getLogger(__name__)
+        self.icingaCmdFile = icingaCmdFile
+        self.changedHosts = changedHosts
+        # F U Python and your random fail os.path permissions weirdness 
+        #if not os.path.exists(self.icingaCmdFile):
+        #    self.logger.critical("icinga cmdfile: %s does not exist, exiting." % (self.icingaCmdFile))
+        #    exit(1)
+        dt = datetime.datetime.now()
+        dtStart_time = time.mktime(dt.timetuple())
+        end = dt + datetime.timedelta(minutes=10)
+        dtEnd_time = time.mktime(end.timetuple())
+
+        dtCommand = "SCHEDULE_HOST_SVC_DOWNTIME"
+        dtComment = "Cloudgazer downtime to allow host to initialise"
+        dtAuthor = "nagios"
+        # Duration in seconds
+        dtDuration = 900
+        runas = pwd.getpwnam('nagios')
+        self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
+        self.logger.debug("Waiting for 10 seconds for icinga to come backup")
+        time.sleep(10)
+        for hosts in changedHosts:
+
+            os.seteuid(runas.pw_uid)
+            testfile = "/tmp/whoamid"
+            if changedHosts[hosts] == 'added':
+                dtHost_name = hosts
+                dtMessage = "[%d] %s;%s;%d;%d;0;0;%d;%s;%s; \n " % (dtStart_time, dtCommand, dtHost_name, dtStart_time,dtEnd_time, dtDuration, dtAuthor, dtComment) 
+                args = ["/bin/printf", dtMessage, ]
+                try:
+                    self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
+                    f = open(icingaCmdFile, 'w')
+                    self.logger.debug("message to icinga: %s " % (dtMessage))
+                    f.write(dtMessage)
+                except IOError as e:
+                    self.logger.debug("Cannot open icinga cmdfile: %s " % (self.icingaCmdFile))
+                f.close()
+            os.seteuid(0)
+
+        self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
+
+
