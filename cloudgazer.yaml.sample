@@ -2,6 +2,7 @@ ec2:
     region: us-west-1
     filters:
         tag-key: 'role'
+    exclude_tag: 'disable_monitoring_if_present'
 
 notifications:
     sns:

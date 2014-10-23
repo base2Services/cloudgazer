@@ -63,11 +63,15 @@ def main():
     templateMap = config['template_map']
     mappings = config['mappings']
     filters = config['ec2']['filters']
+    if 'exclude_tag' in config['ec2']:
+        exclude_tag = config['ec2']['exclude_tag']
+    else:
+        exclude_tag = ''
 
     #Notification config
     notification_conf = config['notifications']
 
-    awsHosts = AWSHosts(region=region, filters=filters, mappings=mappings, templateMap=templateMap)
+    awsHosts = AWSHosts(region=region, filters=filters, mappings=mappings, templateMap=templateMap, exclude_tag=exclude_tag)
 
     #print len(awsHosts.instances)
     for host in awsHosts.hosts:

@@ -4,15 +4,16 @@ from boto import sns
 
 
 class Hosts:
-    def __init__(self, region, filters, mappings, templateMap):
+    def __init__(self, region, filters, mappings, templateMap, exclude_tag):
         self.logger = logging.getLogger(__name__)
         self.region = region
         self.filters = filters
+        self.exclude_tag = exclude_tag
         self.hosts = []
 
         ec2Conn = ec2.connect_to_region(self.region)
         self.reservations = ec2Conn.get_all_instances(filters=filters)
-        self.instances = [inst for res in self.reservations for inst in res.instances]
+        self.instances = [inst for res in self.reservations for inst in res.instances if self.exclude_tag not in inst.tags]
 
         for inst in self.instances:
             myhost = {}
