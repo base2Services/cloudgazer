@@ -5,6 +5,7 @@ ec2:
     exclude_tag: 'disable_monitoring_if_present'
 
 notifications:
+    enabled: True
     sns:
         region: us-west-1
         topic : arn:aws:sns:us-west-1:xxxxxxx:cloudgazer

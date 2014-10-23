@@ -109,9 +109,14 @@ def main():
 
 class Notify:
     def __init__(self, config, method, type='host_change', message=None, changedHosts=None, subject='Cloudgazer Notification'):
+        self.logger = logging.getLogger(__name__)
         self.changedHosts = changedHosts
         self.config = config
         self.hostname = socket.gethostname()
+        if 'enabled' in config:
+            self.notifications_enabled = config['enabled']
+        else:
+            self.notifications_enabled = True
 
         #if its a host change notification, generate the message from changeHosts dict
         if type == 'host_change':
@@ -125,9 +130,13 @@ class Notify:
             else:
                 self.message += 'Cloudgazer encounted an unknown error, please investigate.\n\n'
 
-        if method == 'SNS':
-            sns = SNSNotify(region=config['sns']['region'] , topic=config['sns']['topic'])
-            sns.publish(message=self.message, subject=subject)
+        # Send notifications unless config specifically disables it, otherwise just log
+        if self.notifications_enabled:
+            if method == 'SNS':
+                sns = SNSNotify(region=config['sns']['region'] , topic=config['sns']['topic'])
+                sns.publish(message=self.message, subject=subject)
+        else:
+            self.logger.debug("Notifications are disabled - We Would've sent this: %s" % self.message)
 
     def _generate_host_change_message(self, changedHosts):
         message = "AWS Hosts in nagios have changed on %s:\n\n" % (self.hostname)
