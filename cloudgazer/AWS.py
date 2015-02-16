@@ -13,12 +13,16 @@ class Hosts:
 
         ec2Conn = ec2.connect_to_region(self.region)
         self.reservations = ec2Conn.get_all_instances(filters=filters)
-        self.instances = [inst for res in self.reservations for inst in res.instances if self.exclude_tag not in inst.tags]
+        self.instances = [inst for res in self.reservations
+                          for inst in res.instances
+                          if self.exclude_tag not in inst.tags]
 
         for inst in self.instances:
             myhost = {}
             for map in mappings:
-                myhost[mappings[map]['nagios_field']] = self.build_nagios_field(inst, mappings[map]['nagios_field'], mappings[map]['ec2_instance_property'])
+                myhost[mappings[map]['nagios_field']] = self.build_nagios_field(inst,
+                                                                                mappings[map]['nagios_field'],
+                                                                                mappings[map]['ec2_instance_property'])
             self.hosts.append(myhost)
 
     def build_nagios_field(self, instance, fieldName, fieldProperties):

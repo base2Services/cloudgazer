@@ -2,9 +2,7 @@ import logging
 import os.path
 import sqlite3
 import shlex
-import subprocess
-from subprocess import check_call, check_output, call
-from subprocess import CalledProcessError
+from subprocess import check_call, check_output, CalledProcessError
 import time
 import datetime
 import pwd
@@ -18,21 +16,21 @@ class Config:
         self.hostIdent = hostIdent
         self.nagiosFields = nagiosFields
 
-        #Build create table statement
+        # Build create table statement
         nagiosFieldsStr = ' TEXT, '.join(self.nagiosFields)
         createTable = "CREATE TABLE nagios_hosts(%s TEXT, PRIMARY KEY (%s))" % (nagiosFieldsStr, self.hostIdent)
 
         if not os.path.exists(self.databaseFile):
             self.logger.warning('SQLite database does not exist, creating new one.')
 
-        #Connect to sqlite database and create nagios_hosts table if it doesn't exist
+        # Connect to sqlite database and create nagios_hosts table if it doesn't exist
         try:
             self.dbconn = sqlite3.connect(databaseFile)
             self.cur = self.dbconn.cursor()
-            #check this database was created with the same host fields as we have now, otherwise it needs to be deleted
+            # check this database was created with the same host fields as we have now, otherwise it needs to be deleted
             self.cur.execute('SELECT sql FROM sqlite_master WHERE type=\'table\' AND name = \'nagios_hosts\';')
             row = self.cur.fetchone()
-            #self.cur.execute('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'nagios_hosts\';')
+            # self.cur.execute('SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'nagios_hosts\';')
             if not row:
                 self.logger.debug('No table called nagios_hosts found. Creating...')
                 self.cur.execute(createTable)
@@ -44,12 +42,12 @@ class Config:
                     if col.strip().startswith('PRIMARY'):
                         continue
                     fieldName = col.strip().split(' ')[0]
-                    if not fieldName in checkFields:
+                    if fieldName not in checkFields:
                         extraField = True
                         break
                     checkFields.remove(fieldName)
                 if len(checkFields) > 0 or extraField:
-                    #nagios fields have changed since database creation
+                    # nagios fields have changed since database creation
                     self.logger.critical('Fields in database do not match yaml file. Delete database if you are sure yaml is correct')
                     self.logger.critical("Current database table create statement: %s" % (row[0]))
                     self.logger.critical("New database table create statement: %s" % (createTable))
@@ -75,7 +73,7 @@ class Config:
                     currentHosts2.remove(chost)
                     exists = True
                     different = []
-                    #nhost already exists in database
+                    # nhost already exists in database
                     for attrib in nhost:
                         if attrib == self.hostIdent:
                             continue
@@ -85,7 +83,7 @@ class Config:
                         self.updateHostinDB(nhost)
                         changeList[chost[self.hostIdent]] = "updated:%s" % (':'.join(different))
             if not exists:
-                #nhost doesnt exist in currentHosts
+                # nhost doesnt exist in currentHosts
                 self.addHosttoDB(nhost)
                 changeList[nhost[self.hostIdent]] = 'added'
         if len(currentHosts2) > 0:
@@ -142,7 +140,7 @@ class Writer:
             self.logger.critical('Nagios configuration path does not exist, exiting.')
             exit(1)
 
-        #remove all the files in the directory currently
+        # remove all the files in the directory currently
         filelist = [f for f in os.listdir(self.configDir) if f.endswith(".cfg")]
         for f in filelist:
             os.remove(self.configDir + '/' + f)
@@ -220,6 +218,7 @@ class Manager:
             self.logger.debug("Nagios restart failed. Return code: %s" % (e.returncode))
             return False
 
+
 class Downtime:
     """
     Looks after scheduling downtime in Nagios
@@ -230,19 +229,19 @@ class Downtime:
 
     SCHEDULE_HOST_SVC_DOWNTIME;<host_name>;<start_time>;<end_time>;<fixed>;<trigger_id>;<duration>;<author>;<comment>
 
-    Schedules downtime for all services associated with a particular host. 
+    Schedules downtime for all services associated with a particular host.
     If the "fixed" argument is set to one (1), downtime will start and end at
-    the times specified by the "start" and "end" arguments. 
+    the times specified by the "start" and "end" arguments.
 
     """
     def __init__(self, changedHosts, icingaCmdFile):
         self.logger = logging.getLogger(__name__)
         self.icingaCmdFile = icingaCmdFile
         self.changedHosts = changedHosts
-        # F U Python and your random fail os.path permissions weirdness 
-        #if not os.path.exists(self.icingaCmdFile):
-        #    self.logger.critical("icinga cmdfile: %s does not exist, exiting." % (self.icingaCmdFile))
-        #    exit(1)
+        # F U Python and your random fail os.path permissions weirdness
+#         if not os.path.exists(self.icingaCmdFile):
+#            self.logger.critical("icinga cmdfile: %s does not exist, exiting." % (self.icingaCmdFile))
+#            exit(1)
         dt = datetime.datetime.now()
         dtStart_time = time.mktime(dt.timetuple())
         end = dt + datetime.timedelta(minutes=10)
@@ -260,21 +259,25 @@ class Downtime:
         for hosts in changedHosts:
 
             os.seteuid(runas.pw_uid)
-            testfile = "/tmp/whoamid"
             if changedHosts[hosts] == 'added':
                 dtHost_name = hosts
-                dtMessage = "[%d] %s;%s;%d;%d;0;0;%d;%s;%s; \n " % (dtStart_time, dtCommand, dtHost_name, dtStart_time,dtEnd_time, dtDuration, dtAuthor, dtComment) 
-                args = ["/bin/printf", dtMessage, ]
+                dtMessage = "[%d] %s;%s;%d;%d;0;0;%d;%s;%s; \n " % (dtStart_time,
+                                                                    dtCommand,
+                                                                    dtHost_name,
+                                                                    dtStart_time,
+                                                                    dtEnd_time,
+                                                                    dtDuration,
+                                                                    dtAuthor,
+                                                                    dtComment)
                 try:
-                    self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
+                    self.logger.debug("current euid %s , uid %s " % (os.geteuid(),
+                                                                     os.getuid()))
                     f = open(icingaCmdFile, 'w')
                     self.logger.debug("message to icinga: %s " % (dtMessage))
                     f.write(dtMessage)
-                except IOError as e:
+                except IOError:
                     self.logger.debug("Cannot open icinga cmdfile: %s " % (self.icingaCmdFile))
                 f.close()
             os.seteuid(0)
 
         self.logger.debug("current euid %s , uid %s " % (os.geteuid(), os.getuid()))
-
-
