@@ -158,8 +158,20 @@ class Writer:
         self.logger.debug("new files: %s" % (newFiles))
 
         for file in newFiles:
-            f = open(os.path.join(self.configDir, file), 'w')
-            f.write(newFiles[file])
+            new_host_cfg_path = os.path.join(self.configDir, file)
+            with open(new_host_cfg_path, 'w') as f:
+                f.write(newFiles[file])
+                # Check to see if we have a file called foo.cfg.services.
+                # if so, nclude it in our host file generation to get around
+                # an issue we're seeing with empty ASGs causing Nagios Config
+                # errors due to services being defined for hosts that don't
+                # exist anymore.
+                self.logger.critical(new_host_cfg_path)
+                if os.path.isfile(new_host_cfg_path + '.services'):
+                    self.logger.critical("yes")
+                    with open(new_host_cfg_path + '.services') as svc_file:
+                        for l in svc_file:
+                            f.write(l)
 
     def _convertHostToStr(self, host):
         hostStr = 'define host {\n'
