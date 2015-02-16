@@ -166,9 +166,7 @@ class Writer:
                 # an issue we're seeing with empty ASGs causing Nagios Config
                 # errors due to services being defined for hosts that don't
                 # exist anymore.
-                self.logger.critical(new_host_cfg_path)
                 if os.path.isfile(new_host_cfg_path + '.services'):
-                    self.logger.critical("yes")
                     with open(new_host_cfg_path + '.services') as svc_file:
                         for l in svc_file:
                             f.write(l)
