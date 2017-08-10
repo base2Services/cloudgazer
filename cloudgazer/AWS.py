@@ -76,4 +76,4 @@ class SNSNotify:
         self._snsConn = sns.connect_to_region(region)
 
     def publish(self, message, subject):
-        return self._snsConn.publish(self.topic, message, subject)
+        return self._snsConn.publish(target_arn=self.topic, message=message, subject=subject)
