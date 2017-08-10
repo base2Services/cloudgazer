@@ -1,5 +1,6 @@
 ec2:
     region: us-west-1
+    assumed_role_arn: arn:aws:iam::xxxxxxx:role/cloudgazer
     filters:
         tag-key: 'role'
     exclude_tag: 'disable_monitoring_if_present'

@@ -51,6 +51,7 @@ def main():
 
     # get ec2 region
     region = config['ec2']['region']
+    assumed_role_arn = config['ec2']['assumed_role_arn']
 
     # get paths for nagios config
     nagiosDir = os.path.expanduser(config['nagios']['host_dir'])
@@ -81,6 +82,7 @@ def main():
     notification_conf = config['notifications']
 
     awsHosts = AWSHosts(region=region,
+                        assumed_role_arn=assumed_role_arn,
                         filters=filters,
                         mappings=mappings,
                         templateMap=templateMap,

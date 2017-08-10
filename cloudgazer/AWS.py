@@ -1,17 +1,29 @@
 import logging
 from boto import ec2
+from boto.sts import STSConnection
 from boto import sns
 
 
 class Hosts:
-    def __init__(self, region, filters, mappings, templateMap, exclude_tag):
+    def __init__(self, region, assumed_role_arn, filters, mappings, templateMap, exclude_tag):
         self.logger = logging.getLogger(__name__)
         self.region = region
         self.filters = filters
         self.exclude_tag = exclude_tag
         self.hosts = []
 
-        ec2Conn = ec2.connect_to_region(self.region)
+        assumedRoleObject = STSConnection.assume_role(
+            role_arn=self.assumed_role_arn,
+            role_session_name="assumeRole_" + uuid.uuid4().urn[-12:]
+        )
+
+        ec2Conn = ec2.connect_to_region(
+            self.region,
+            aws_access_key_id=assumedRoleObject.credentials.access_key,
+            aws_secret_access_key=assumedRoleObject.credentials.secret_key,
+            security_token=assumedRoleObject.credentials.session_token
+        )
+
         self.reservations = ec2Conn.get_all_instances(filters=filters)
         self.instances = [inst for res in self.reservations
                           for inst in res.instances
