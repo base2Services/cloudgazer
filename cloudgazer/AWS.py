@@ -2,17 +2,19 @@ import logging
 from boto import ec2
 from boto.sts import STSConnection
 from boto import sns
+import uuid
 
 
 class Hosts:
     def __init__(self, region, assumed_role_arn, filters, mappings, templateMap, exclude_tag):
         self.logger = logging.getLogger(__name__)
         self.region = region
+        self.assumed_role_arn = assumed_role_arn
         self.filters = filters
         self.exclude_tag = exclude_tag
         self.hosts = []
 
-        assumedRoleObject = STSConnection.assume_role(
+        assumedRoleObject = STSConnection().assume_role(
             role_arn=self.assumed_role_arn,
             role_session_name="assumeRole_" + uuid.uuid4().urn[-12:]
         )
